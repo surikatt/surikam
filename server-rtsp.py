@@ -25,8 +25,12 @@ height = int(stream.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 print(f"Video: {width}x{height}")
 
-out = cv2.VideoWriter('appsrc ! videoconvert' + \
-    ' ! x265enc speed-preset=ultrafast bitrate=900 key-int-max=10' + \
+out = cv2.VideoWriter('appsrc num-buffers=1000' + \
+    ' ! videoflip method=horizontal-flip'+ \
+    ' ! video/x-raw, format=BGR'+ \
+    ' ! videoconvert' + \
+    ' ! x264enc speed-preset=ultrafast bitrate=1200 byte-stream=false key-int-max=60 bframes=10 aud=true tune=zerolatency' + \
+    ' ! rtpjitterbuffer' + \
     ' ! rtspclientsink location=rtsp://192.168.1.197:8554/stream',
     cv2.CAP_GSTREAMER, 0, fps, (width, height), True)
 if not out.isOpened():
@@ -66,16 +70,15 @@ def handleFrames(queue: queue.Queue):
             print("Out of sync!")
             continue
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+        # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # faces = face_cascade.detectMultiScale(gray, 1.1, 4)
 
-        for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+        # for (x, y, w, h) in faces:
+        #    cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
 
-        image = frame
         #array = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 30])[1].tobytes()
         #ffmpeg_process.stdin.write(image.astype(np.uint8).tobytes())
-        out.write(image)
+        out.write(frame)
 
 
 
@@ -88,7 +91,7 @@ def captureVideo(frames: queue.Queue, stream):
         ret, frame = stream.read()
         frames_pending += 1
         frames.put((time(), frame))
-        sleep(1/30)
+        sleep(1/fps)
 
 
 capture = Thread(target=captureVideo, args=[frames, stream])
